@@ -3,6 +3,7 @@ import os
 from sentence_transformers import SentenceTransformer
 import io
 import re
+import requests
 import numpy as np
 from PyPDF2 import PdfReader
 from sentence_transformers import SentenceTransformer
