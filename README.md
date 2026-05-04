@@ -56,3 +56,4 @@ Users can upload any technical manual, research paper, or legal document, and in
 
 ---
 *This project was built to showcase practical knowledge spanning modern AI integration, backend vector logic, and frontend rapid prototyping.*
+# RAGDocsApp
