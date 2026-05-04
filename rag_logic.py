@@ -80,14 +80,76 @@ def embed_texts(texts):
 
 
 
+def build_vector_store(uploaded_files, chunk_size=400, overlap=100):
+    """Read PDFs, split text into chunks, and embed each chunk."""
+    chunks = []
+    sources = []
+
+    for uploaded_file in uploaded_files:
+        text = read_pdf(uploaded_file.read())
+        file_name = uploaded_file.name
+        file_chunks = split_text(text, chunk_size, overlap)
+
+        for index, chunk in enumerate(file_chunks, start=1):
+            chunks.append(chunk)
+            sources.append(f"{file_name} chunk {index}")
+
+    if not chunks:
+        return {"chunks": [], "embeddings": [], "sources": []}
+
+    embeddings = embed_texts(chunks)
+    return {"chunks": chunks, "embeddings": embeddings, "sources": sources}
 
 
 
+def find_similar_chunks(question, store, top_k=4):
+    """Return the top matching chunks for a question."""
+    
+    if not store["chunks"]:
+        return []
+
+    question_embedding = embed_texts([question])[0]
+    scores = store["embeddings"] @ question_embedding
+    top_indexes = np.argsort(-scores)[:top_k]
+
+    results = []
+    for index in top_indexes:
+        results.append(
+            {
+                "text": store["chunks"][index],
+                "source": store["sources"][index],
+                "score": float(scores[index]),
+            }
+        )
+
+    return results
 
 
 
+def format_context(retrieved):
+    """Join retrieved chunks into a single prompt context."""
+    if not retrieved:
+        return ""
+
+    lines = []
+    for item in retrieved:
+        lines.append(f"Source: {item['source']}\n{item['text']}")
+
+    return "\n\n---\n\n".join(lines)
 
 
+def build_prompt(context, question):
+    """Create a Groq prompt from context and the user question."""
+    prompt_text = (
+        "You are an AI assistant that answers questions using ONLY the provided document context. "
+        "Do not invent facts. If the answer is not in the context, say that it is not available.\n\n"
+        "Context:\n"
+        f"{context}\n\n"
+        "Question:\n"
+        f"{question}\n\n"
+        "Answer using only the context above."
+    )
+    return prompt_text
 
 
 
