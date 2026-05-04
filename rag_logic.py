@@ -153,7 +153,53 @@ def build_prompt(context, question):
 
 
 
+def ask_groq(prompt_text):
+    """Send the prompt to Groq Cloud and return the answer text."""
+    api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        raise RuntimeError("Set GROQ_API_KEY or GEMINI_API_KEY or GOOGLE_API_KEY in the environment.")
 
+    raw_base_url = os.environ.get("GROQ_BASE_URL", "https://api.groq.com")
+    base_url = raw_base_url.rstrip("/")
+    if base_url.endswith("/openai/v1"):
+        endpoint = f"{base_url}/responses"
+    else:
+        endpoint = f"{base_url}/openai/v1/responses"
+
+    model_name = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model_name,
+        "input": prompt_text,
+    }
+
+    response = requests.post(endpoint, headers=headers, json=payload, timeout=30)
+    response.raise_for_status()
+    data = response.json()
+
+    if isinstance(data, dict):
+        if "output_text" in data:
+            return data["output_text"].strip()
+        if "output" in data and isinstance(data["output"], list):
+            output_parts = []
+            for item in data["output"]:
+                if isinstance(item, dict) and "content" in item:
+                    content = item["content"]
+                    if isinstance(content, list):
+                        for part in content:
+                            if isinstance(part, dict) and part.get("type") == "output_text":
+                                output_parts.append(part.get("text", ""))
+                            elif isinstance(part, str):
+                                output_parts.append(part)
+                    elif isinstance(content, str):
+                        output_parts.append(content)
+            if output_parts:
+                return "".join(output_parts).strip()
+
+    return str(data).strip()
 
 
 
